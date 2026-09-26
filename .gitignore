@@ -1,0 +1,11 @@
+# ビルド成果物
+/build*/
+/cmake-build-*/
+
+# エディタ・ツール
+.cache/
+.idea/
+.vscode/
+
+# macOS
+.DS_Store

@@ -1,0 +1,2 @@
+# NT mac
+macOS上でWindowsアプリを動かす無謀なプロジェクト
