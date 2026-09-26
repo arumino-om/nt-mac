@@ -1,0 +1,9 @@
+LIBRARY ntdll.dll
+EXPORTS
+    NtReadFile
+    NtTerminateProcess
+    NtWriteFile
+    RtlGetCurrentPeb
+    RtlGetLastWin32Error
+    RtlNtStatusToDosError
+    RtlSetLastWin32Error

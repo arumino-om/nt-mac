@@ -1,0 +1,8 @@
+LIBRARY kernel32.dll
+EXPORTS
+    ExitProcess
+    GetLastError = ntdll.RtlGetLastWin32Error
+    GetStdHandle
+    ReadFile
+    SetLastError = ntdll.RtlSetLastWin32Error
+    WriteFile

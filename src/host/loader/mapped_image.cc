@@ -3,14 +3,17 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
-#include "loader/mapped_image.h"
-#include "nt/types.h"
+#include "host/loader/mapped_image.h"
 #include "purefuncs.h"
 
 namespace ntmac::loader {
 
-MappedImage::MappedImage(const PeImage& pe, const ImportResolver& resolver)
-    : entry_rva_(pe.optional_header().AddressOfEntryPoint) {
+MappedImage::MappedImage(const PeImage& pe)
+    : is_dll_(pe.file_header().Characteristics & formats::kFileDll),
+      opt_(pe.optional_header()),
+      import_dir_(pe.data_directory(formats::kDirImport)),
+      export_dir_(pe.data_directory(formats::kDirExport)),
+      sections_(pe.sections().begin(), pe.sections().end()) {
     if (pe.data_directory(formats::kDirTls).Size != 0) {
         std::cerr << "warning: TLSディレクトリは未対応のため無視します\n";
     }
@@ -19,8 +22,6 @@ MappedImage::MappedImage(const PeImage& pe, const ImportResolver& resolver)
     try {
         copy_sections(pe);
         apply_relocations(pe);
-        resolve_imports(pe, resolver);
-        protect(pe);
     } catch (...) {
         munmap(base_, size_);
         throw;
@@ -106,12 +107,11 @@ void MappedImage::apply_relocations(const PeImage& pe) {
     }
 }
 
-void MappedImage::resolve_imports(const PeImage& pe, const ImportResolver& resolver) {
-    auto dir = pe.data_directory(formats::kDirImport);
-    if (dir.Size == 0) return;
+void MappedImage::resolve_imports(const ImportResolver& resolver) {
+    if (import_dir_.Size == 0) return;
 
     std::vector<std::string> missing;
-    for (uint64_t pos = dir.VirtualAddress;; pos += sizeof(formats::ImportDescriptor)) {
+    for (uint64_t pos = import_dir_.VirtualAddress;; pos += sizeof(formats::ImportDescriptor)) {
         auto desc = read<formats::ImportDescriptor>(pos);
         if (desc.OriginalFirstThunk == 0 && desc.Name == 0 && desc.FirstThunk == 0) break;
 
@@ -148,8 +148,7 @@ void MappedImage::resolve_imports(const PeImage& pe, const ImportResolver& resol
     }
 }
 
-void MappedImage::protect(const PeImage& pe) {
-    const auto& opt = pe.optional_header();
+void MappedImage::protect() {
     const size_t page = getpagesize();
 
     // ホストのページサイズがSectionAlignmentより大きい場合に備え，ページ単位で保護属性を合成する
@@ -161,13 +160,13 @@ void MappedImage::protect(const PeImage& pe) {
         }
     };
 
-    mark(0, opt.SizeOfHeaders, PROT_READ);
-    for (const auto& sec : pe.sections()) {
+    mark(0, opt_.SizeOfHeaders, PROT_READ);
+    for (const auto& sec : sections_) {
         int flags = 0;
         if (sec.Characteristics & formats::kScnMemRead) flags |= PROT_READ;
         if (sec.Characteristics & formats::kScnMemWrite) flags |= PROT_WRITE;
         if (sec.Characteristics & formats::kScnMemExecute) flags |= PROT_EXEC | PROT_READ;
-        mark(sec.VirtualAddress, align_up(formats::virtual_size(sec), opt.SectionAlignment), flags);
+        mark(sec.VirtualAddress, align_up(formats::virtual_size(sec), opt_.SectionAlignment), flags);
     }
 
     for (size_t start = 0; start < prot.size();) {
@@ -189,15 +188,54 @@ std::string MappedImage::read_cstring(uint64_t rva) const {
     return std::string(p, len);
 }
 
-uint32_t MappedImage::run() const {
-    if (entry_rva_ == 0) {
-        throw LoadError("エントリポイントがありません");
+std::optional<uint32_t> MappedImage::export_index_by_name(const formats::ExportDirectory& dir,
+                                                         const ImportSymbol& sym) const {
+    auto name_at = [&](uint32_t i) {
+        return read_cstring(read<uint32_t>(static_cast<uint64_t>(dir.AddressOfNames) + i * sizeof(uint32_t)));
+    };
+    auto ordinal_at = [&](uint32_t i) {
+        return read<uint16_t>(static_cast<uint64_t>(dir.AddressOfNameOrdinals) + i * sizeof(uint16_t));
+    };
+
+    // まずヒントの位置を見て，外れたら名前テーブル (昇順) を二分探索する
+    if (sym.hint < dir.NumberOfNames && name_at(sym.hint) == sym.name) {
+        return ordinal_at(sym.hint);
     }
 
-    // Windowsではプロセスのエントリポイントは PEB* を引数に呼ばれる (現状PEBは未実装)
-    using EntryPoint = uint32_t (WINAPI*)(void* peb);
-    auto entry = reinterpret_cast<EntryPoint>(base_ + entry_rva_);
-    return entry(nullptr);
+    uint32_t lo = 0, hi = dir.NumberOfNames;
+    while (lo < hi) {
+        uint32_t mid = lo + (hi - lo) / 2;
+        int cmp = name_at(mid).compare(sym.name);
+        if (cmp == 0) return ordinal_at(mid);
+        if (cmp < 0) lo = mid + 1;
+        else hi = mid;
+    }
+    return std::nullopt;
+}
+
+std::optional<ExportTarget> MappedImage::find_export(const ImportSymbol& sym) const {
+    if (export_dir_.Size == 0) return std::nullopt;
+    auto dir = read<formats::ExportDirectory>(export_dir_.VirtualAddress);
+
+    std::optional<uint32_t> index;
+    if (sym.ordinal) {
+        if (*sym.ordinal >= dir.Base) index = *sym.ordinal - dir.Base;
+    } else {
+        index = export_index_by_name(dir, sym);
+    }
+    if (!index || *index >= dir.NumberOfFunctions) return std::nullopt;
+
+    auto rva = read<uint32_t>(static_cast<uint64_t>(dir.AddressOfFunctions) + *index * sizeof(uint32_t));
+    if (rva == 0) return std::nullopt;
+
+    // エクスポートディレクトリの範囲内を指していればフォワーダ文字列
+    ExportTarget target;
+    if (rva >= export_dir_.VirtualAddress && rva - export_dir_.VirtualAddress < export_dir_.Size) {
+        target.forwarder = read_cstring(rva);
+    } else {
+        target.address = checked(rva, 1);
+    }
+    return target;
 }
 
 }

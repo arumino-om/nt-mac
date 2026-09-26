@@ -14,6 +14,9 @@ constexpr size_t kNumDataDirectories = 16;
 constexpr uint16_t kFileRelocsStripped = 0x0001;
 constexpr uint16_t kFileDll            = 0x2000;
 
+// DllMain の reason
+constexpr uint32_t kDllProcessAttach = 1;
+
 // DataDirectoryのインデックス
 constexpr size_t kDirExport    = 0;
 constexpr size_t kDirImport    = 1;
@@ -119,6 +122,20 @@ struct ImportDescriptor {
     uint32_t FirstThunk;         // Import Address Table のRVA
 };
 
+struct ExportDirectory {
+    uint32_t Characteristics;
+    uint32_t TimeDateStamp;
+    uint16_t MajorVersion;
+    uint16_t MinorVersion;
+    uint32_t Name;
+    uint32_t Base;                  // 序数の開始値
+    uint32_t NumberOfFunctions;
+    uint32_t NumberOfNames;
+    uint32_t AddressOfFunctions;    // RVA[NumberOfFunctions]
+    uint32_t AddressOfNames;        // 名前のRVA[NumberOfNames] (昇順)
+    uint32_t AddressOfNameOrdinals; // uint16_t[NumberOfNames] (Baseを引いた値)
+};
+
 struct BaseRelocationBlock {
     uint32_t VirtualAddress;
     uint32_t SizeOfBlock;        // このヘッダを含むブロック全体のサイズ
@@ -135,6 +152,7 @@ static_assert(offsetof(OptionalHeader64, SizeOfImage) == 56);
 static_assert(offsetof(OptionalHeader64, DataDirectory) == 112);
 
 static_assert(sizeof(ImportDescriptor) == 20);
+static_assert(sizeof(ExportDirectory) == 40);
 static_assert(sizeof(BaseRelocationBlock) == 8);
 
 static_assert(sizeof(SectionHeader) == 40);

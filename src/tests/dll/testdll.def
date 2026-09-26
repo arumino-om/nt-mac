@@ -1,0 +1,5 @@
+LIBRARY testdll.dll
+EXPORTS
+    Answer
+    AnswerByOrdinal @10 NONAME
+    TestExit = kernel32.ExitProcess

@@ -1,0 +1,4 @@
+; NTMACHOST.DLL の import ライブラリ用の定義．実体はローダに組み込まれている (src/host/ntmachost/)
+LIBRARY ntmachost.dll
+EXPORTS
+    ntmachost_call

@@ -1,8 +1,8 @@
 #include <cstring>
 #include <iostream>
 #include <tuple>
-#include "loader/pe_image.h"
-#include "loader/exceptions/pe_format_error.h"
+#include "host/loader/pe_image.h"
+#include "host/loader/exceptions/pe_format_error.h"
 #include "purefuncs.h"
 
 namespace ntmac::loader {
