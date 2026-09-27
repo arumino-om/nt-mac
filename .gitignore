@@ -2,6 +2,9 @@
 /build*/
 /cmake-build-*/
 
+# ローカルの検証用ファイル (MSVC でビルドした exe，Microsoft の native DLL など．コミットしない)
+/.temp/
+
 # エディタ・ツール
 .cache/
 .idea/

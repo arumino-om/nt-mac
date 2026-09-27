@@ -43,9 +43,28 @@ public:
 
     std::optional<ExportTarget> find_export(const ImportSymbol& sym) const;
 
+    /**
+     * TLS ディレクトリを返します．無ければ std::nullopt を返します．
+     */
+    std::optional<formats::TlsDirectory64> tls_directory() const;
+
+    /**
+     * 仮想アドレス va から n バイトがイメージ内に収まっていればそのポインタを，そうでなければ nullptr を返します．
+     */
+    uint8_t* at_va(uint64_t va, uint64_t n) const {
+        uint64_t base = reinterpret_cast<uint64_t>(base_);
+        if (va < base || va - base > size_ || n > size_ - (va - base)) return nullptr;
+        return base_ + (va - base);
+    }
+
     uint8_t* base() const { return base_; }
     size_t size() const { return size_; }
     bool contains(const void* p) const { return p >= base_ && p < base_ + size_; }
+
+    /**
+     * p が実行可能なセクションの中を指しているか (関数か，データのエクスポートかの判別に使う)
+     */
+    bool is_code(const void* p) const;
     bool is_dll() const { return is_dll_; }
     const formats::OptionalHeader64& optional_header() const { return opt_; }
 
@@ -88,6 +107,7 @@ private:
     formats::OptionalHeader64 opt_{};
     formats::DataDirectory import_dir_{};
     formats::DataDirectory export_dir_{};
+    formats::DataDirectory tls_dir_{};
     std::vector<formats::SectionHeader> sections_;
 };
 

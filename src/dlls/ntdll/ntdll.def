@@ -1,9 +1,92 @@
 LIBRARY ntdll.dll
 EXPORTS
+    ; ローダ
+    LdrAccessResource
+    LdrFindResource_U
+    LdrGetDllHandle
+    LdrGetProcedureAddress
+    LdrLoadDll
+    LdrShutdownProcess
+    LdrUnloadDll
+    RtlPcToFileHeader
+    ntmac_LdrGetModuleFileName
+    ; ファイル・ハンドル
+    NtClose
+    NtQueryVolumeInformationFile
     NtReadFile
-    NtTerminateProcess
     NtWriteFile
+    ; プロセス・スレッド
+    NtDelayExecution
+    NtTerminateProcess
+    NtYieldExecution
+    RtlExitUserProcess
     RtlGetCurrentPeb
+    ; 仮想メモリ
+    NtAllocateVirtualMemory
+    NtFreeVirtualMemory
+    NtProtectVirtualMemory
+    NtQueryVirtualMemory
+    ; ヒープ
+    RtlAllocateHeap
+    RtlCreateHeap
+    RtlFreeHeap
+    RtlReAllocateHeap
+    RtlSizeHeap
+    ; 時刻
+    NtQueryPerformanceCounter
+    NtQuerySystemTime
+    RtlLocalTimeToSystemTime
+    RtlSystemTimeToLocalTime
+    RtlTimeFieldsToTime
+    RtlTimeToTimeFields
+    ; 同期
+    RtlAcquireSRWLockExclusive
+    RtlAcquireSRWLockShared
+    RtlDeleteCriticalSection
+    RtlEnterCriticalSection
+    RtlInitializeConditionVariable
+    RtlInitializeCriticalSection
+    RtlInitializeCriticalSectionAndSpinCount
+    RtlInitializeCriticalSectionEx
+    RtlInitializeSRWLock
+    RtlLeaveCriticalSection
+    RtlReleaseSRWLockExclusive
+    RtlReleaseSRWLockShared
+    RtlRunOnceExecuteOnce
+    RtlRunOnceInitialize
+    RtlSleepConditionVariableCS
+    RtlSleepConditionVariableSRW
+    RtlTryAcquireSRWLockExclusive
+    RtlTryAcquireSRWLockShared
+    RtlTryEnterCriticalSection
+    RtlWaitOnAddress
+    RtlWakeAddressAll
+    RtlWakeAddressSingle
+    RtlWakeAllConditionVariable
+    RtlWakeConditionVariable
+    ; SList
+    RtlFirstEntrySList
+    RtlInitializeSListHead
+    RtlInterlockedFlushSList
+    RtlInterlockedPopEntrySList
+    RtlInterlockedPushEntrySList
+    RtlQueryDepthSList
+    ; エラー
     RtlGetLastWin32Error
     RtlNtStatusToDosError
     RtlSetLastWin32Error
+    ; バージョン
+    RtlGetVersion
+    RtlVerifyVersionInfo
+    VerSetConditionMask
+    ; その他
+    RtlDecodePointer
+    RtlEncodePointer
+    RtlIsProcessorFeaturePresent
+    ; CRT
+    memcmp
+    memcpy
+    memmove
+    memset
+    strlen
+    wcslen

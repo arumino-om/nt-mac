@@ -1,0 +1,123 @@
+LIBRARY user32.dll
+EXPORTS
+    ; クラス
+    GetClassInfoExW
+    GetClassLongPtrW
+    GetClassLongW
+    RegisterClassExW
+    RegisterClassW
+    UnregisterClassW
+    ; ウィンドウ
+    EnableWindow
+    GetActiveWindow
+    GetCapture
+    GetFocus
+    GetWindow
+    IsChild
+    IsWindowEnabled
+    ReleaseCapture
+    SetCapture
+    SetFocus
+    AdjustWindowRect
+    AdjustWindowRectEx
+    CreateWindowExW
+    DestroyWindow
+    GetClientRect
+    GetDlgCtrlID
+    GetParent
+    GetWindowLongPtrW
+    GetWindowLongW
+    GetWindowRect
+    GetWindowTextLengthW
+    GetWindowTextW
+    IsWindow
+    IsWindowVisible
+    SetWindowLongPtrW
+    SetWindowLongW
+    SetWindowTextW
+    ShowWindow
+    UpdateWindow
+    ; メッセージ
+    CallWindowProcW
+    DefWindowProcW
+    DispatchMessageW
+    GetMessageW
+    PeekMessageW
+    PostMessageW
+    PostQuitMessage
+    SendMessageW
+    KillTimer
+    SetTimer
+    TranslateMessage
+    WaitMessage
+    ; 描画
+    BeginPaint
+    EndPaint
+    FillRect
+    GetDC
+    GetUpdateRect
+    InvalidateRect
+    ReleaseDC
+    ValidateRect
+    ; 矩形
+    CopyRect
+    EqualRect
+    InflateRect
+    IntersectRect
+    IsRectEmpty
+    OffsetRect
+    PtInRect
+    SetRect
+    SetRectEmpty
+    UnionRect
+    ; テキスト・枠
+    DrawEdge
+    DrawFocusRect
+    DrawTextW
+    FrameRect
+    ; アイコン
+    DestroyIcon
+    DrawIcon
+    DrawIconEx
+    LoadImageW
+    ; リソース
+    DestroyAcceleratorTable
+    LoadAcceleratorsW
+    LoadCursorW
+    LoadIconW
+    LoadStringW
+    SetCursor
+    TranslateAcceleratorW
+    ; メニュー
+    AppendMenuW
+    CreateMenu
+    CreatePopupMenu
+    DestroyMenu
+    DrawMenuBar
+    GetMenu
+    LoadMenuW
+    SetMenu
+    ; ダイアログ
+    CheckDlgButton
+    CreateDialogIndirectParamW
+    CreateDialogParamW
+    DefDlgProcW
+    DialogBoxIndirectParamW
+    DialogBoxParamW
+    EndDialog
+    GetDialogBaseUnits
+    GetDlgItem
+    GetDlgItemTextW
+    GetNextDlgTabItem
+    IsDialogMessageW
+    IsDlgButtonChecked
+    MapDialogRect
+    SendDlgItemMessageW
+    SetDlgItemTextW
+    ; システム
+    GetAsyncKeyState
+    GetKeyState
+    GetSysColor
+    GetSysColorBrush
+    GetSystemMetrics
+    SystemParametersInfoW

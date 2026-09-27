@@ -8,4 +8,12 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+/**
+ * DllMain (DLL_PROCESS_ATTACH) が FALSE を返した
+ */
+class DllInitError : public LoadError {
+public:
+    using LoadError::LoadError;
+};
+
 }

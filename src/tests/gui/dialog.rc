@@ -1,0 +1,14 @@
+#pragma code_page(65001)
+#include <windows.h>
+
+100 DIALOGEX 0, 0, 170, 70
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "バージョン情報"
+FONT 9, "MS UI Gothic", 0, 0, 0x1
+BEGIN
+    LTEXT           "テスト, バージョン 1.0", 101, 14, 10, 150, 8, SS_NOPREFIX
+    LTEXT           "Copyright (c) 2026", 102, 14, 22, 150, 8
+    AUTOCHECKBOX    "チェック", 103, 14, 38, 80, 10
+    DEFPUSHBUTTON   "OK", IDOK, 113, 50, 50, 14, WS_GROUP
+    PUSHBUTTON      "キャンセル", IDCANCEL, 58, 50, 50, 14
+END

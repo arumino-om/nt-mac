@@ -1,8 +1,151 @@
 LIBRARY kernel32.dll
 EXPORTS
-    ExitProcess
-    GetLastError = ntdll.RtlGetLastWin32Error
+    ; ファイル・コンソール
+    CloseHandle
+    GetConsoleCP
+    GetConsoleMode
+    GetConsoleOutputCP
+    GetFileType
     GetStdHandle
     ReadFile
-    SetLastError = ntdll.RtlSetLastWin32Error
+    SetStdHandle
+    WriteConsoleW
     WriteFile
+    ; プロセス
+    ExitProcess = ntdll.RtlExitUserProcess
+    FreeEnvironmentStringsW
+    GetCommandLineA
+    GetCommandLineW
+    GetCurrentProcess
+    GetCurrentProcessId
+    GetEnvironmentStringsW
+    GetErrorMode
+    GetStartupInfoA
+    GetStartupInfoW
+    IsDebuggerPresent
+    OutputDebugStringA
+    OutputDebugStringW
+    SetErrorMode
+    SetUnhandledExceptionFilter
+    TerminateProcess
+    UnhandledExceptionFilter
+    ; モジュール
+    FreeLibrary
+    GetModuleFileNameA
+    GetModuleFileNameW
+    GetModuleHandleA
+    GetModuleHandleExA
+    GetModuleHandleExW
+    GetModuleHandleW
+    GetProcAddress
+    LoadLibraryA
+    LoadLibraryExA
+    LoadLibraryExW
+    LoadLibraryW
+    RtlPcToFileHeader = ntdll.RtlPcToFileHeader
+    ; リソース
+    FindResourceExW
+    FindResourceW
+    FreeResource
+    LoadResource
+    LockResource
+    SizeofResource
+    ; スレッド
+    FlsAlloc
+    FlsFree
+    FlsGetValue
+    FlsSetValue
+    GetCurrentProcessorNumber
+    GetCurrentThread
+    GetCurrentThreadId
+    IsThreadAFiber
+    Sleep
+    SwitchToThread
+    TlsAlloc
+    TlsFree
+    TlsGetValue
+    TlsSetValue
+    ; 同期
+    AcquireSRWLockExclusive = ntdll.RtlAcquireSRWLockExclusive
+    AcquireSRWLockShared = ntdll.RtlAcquireSRWLockShared
+    DeleteCriticalSection = ntdll.RtlDeleteCriticalSection
+    EnterCriticalSection = ntdll.RtlEnterCriticalSection
+    InitOnceExecuteOnce
+    InitOnceInitialize = ntdll.RtlRunOnceInitialize
+    InitializeConditionVariable = ntdll.RtlInitializeConditionVariable
+    InitializeCriticalSection = ntdll.RtlInitializeCriticalSection
+    InitializeCriticalSectionAndSpinCount
+    InitializeCriticalSectionEx
+    InitializeSRWLock = ntdll.RtlInitializeSRWLock
+    LeaveCriticalSection = ntdll.RtlLeaveCriticalSection
+    ReleaseSRWLockExclusive = ntdll.RtlReleaseSRWLockExclusive
+    ReleaseSRWLockShared = ntdll.RtlReleaseSRWLockShared
+    SleepConditionVariableCS
+    SleepConditionVariableSRW
+    TryAcquireSRWLockExclusive = ntdll.RtlTryAcquireSRWLockExclusive
+    TryAcquireSRWLockShared = ntdll.RtlTryAcquireSRWLockShared
+    TryEnterCriticalSection
+    WaitOnAddress
+    WakeAllConditionVariable = ntdll.RtlWakeAllConditionVariable
+    WakeByAddressAll = ntdll.RtlWakeAddressAll
+    WakeByAddressSingle = ntdll.RtlWakeAddressSingle
+    WakeConditionVariable = ntdll.RtlWakeConditionVariable
+    ; SList
+    InitializeSListHead = ntdll.RtlInitializeSListHead
+    InterlockedFlushSList = ntdll.RtlInterlockedFlushSList
+    InterlockedPopEntrySList = ntdll.RtlInterlockedPopEntrySList
+    InterlockedPushEntrySList = ntdll.RtlInterlockedPushEntrySList
+    QueryDepthSList = ntdll.RtlQueryDepthSList
+    ; メモリ・ヒープ
+    GetProcessHeap
+    GlobalAlloc
+    GlobalFree
+    HeapAlloc = ntdll.RtlAllocateHeap
+    HeapFree
+    HeapReAlloc = ntdll.RtlReAllocateHeap
+    HeapSize = ntdll.RtlSizeHeap
+    LocalAlloc
+    LocalFree
+    VirtualAlloc
+    VirtualFree
+    VirtualProtect
+    VirtualQuery
+    ; 時刻
+    FileTimeToLocalFileTime
+    FileTimeToSystemTime
+    GetLocalTime
+    GetSystemTime
+    GetSystemTimeAsFileTime
+    GetSystemTimePreciseAsFileTime
+    GetTickCount
+    GetTickCount64
+    GetTimeZoneInformation
+    LocalFileTimeToFileTime
+    QueryPerformanceCounter
+    QueryPerformanceFrequency
+    SystemTimeToFileTime
+    ; 文字コード
+    GetACP
+    GetCPInfo
+    GetOEMCP
+    IsValidCodePage
+    MultiByteToWideChar
+    WideCharToMultiByte
+    ; 計算
+    MulDiv
+    ; システムの情報
+    GetNativeSystemInfo
+    GetSystemInfo
+    IsProcessorFeaturePresent
+    ; バージョン
+    GetVersion
+    GetVersionExA
+    GetVersionExW
+    VerSetConditionMask = ntdll.VerSetConditionMask
+    VerifyVersionInfoW
+    ; ポインタの符号化
+    DecodePointer = ntdll.RtlDecodePointer
+    EncodePointer = ntdll.RtlEncodePointer
+    ; エラー
+    GetLastError = ntdll.RtlGetLastWin32Error
+    SetLastError = ntdll.RtlSetLastWin32Error

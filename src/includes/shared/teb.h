@@ -103,11 +103,13 @@ typedef struct ntmac_teb {
     ntmac_list_entry TlsLinks;
     uint8_t _reserved2[0x1780 - 0x1690];
     void** TlsExpansionSlots;
-    uint8_t _reserved3[NTMAC_TEB_HOST_TSD - 0x1788];
+    uint8_t _reserved3[0x17C8 - 0x1788];
+    void* FlsData;                                /* kernel32 の Fls* が使う (nt-mac では void*[] を指す) */
+    uint8_t _reserved4[NTMAC_TEB_HOST_TSD - 0x17D0];
 
     /* nt-mac 独自: PE→ホストの切り替え時に gs ベースへ設定する，このスレッドの macOS TSD */
     void* HostTsd;
-    uint8_t _reserved4[NTMAC_TEB_SIZE - NTMAC_TEB_HOST_TSD - 8];
+    uint8_t _reserved5[NTMAC_TEB_SIZE - NTMAC_TEB_HOST_TSD - 8];
 } ntmac_teb;
 
 NTMAC_STATIC_ASSERT(sizeof(ntmac_unicode_string) == 0x10);
@@ -137,6 +139,7 @@ NTMAC_STATIC_ASSERT(offsetof(ntmac_teb, LastStatusValue) == 0x1250);
 NTMAC_STATIC_ASSERT(offsetof(ntmac_teb, DeallocationStack) == 0x1478);
 NTMAC_STATIC_ASSERT(offsetof(ntmac_teb, TlsSlots) == 0x1480);
 NTMAC_STATIC_ASSERT(offsetof(ntmac_teb, TlsExpansionSlots) == 0x1780);
+NTMAC_STATIC_ASSERT(offsetof(ntmac_teb, FlsData) == 0x17C8);
 NTMAC_STATIC_ASSERT(offsetof(ntmac_teb, HostTsd) == NTMAC_TEB_HOST_TSD);
 NTMAC_STATIC_ASSERT(sizeof(ntmac_teb) == NTMAC_TEB_SIZE);
 

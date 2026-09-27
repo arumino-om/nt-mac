@@ -1,0 +1,30 @@
+LIBRARY gdi32.dll
+EXPORTS
+    ; オブジェクト
+    CreateFontIndirectW
+    CreateFontW
+    CreateSolidBrush
+    DeleteObject
+    GetCurrentObject
+    GetObjectType
+    GetObjectW
+    GetStockObject
+    SelectObject
+    ; DC の状態
+    GetBkColor
+    GetBkMode
+    GetDeviceCaps
+    GetTextAlign
+    GetTextColor
+    SetBkColor
+    SetBkMode
+    SetTextAlign
+    SetTextColor
+    ; テキスト
+    ExtTextOutW
+    GetTextExtentPoint32W
+    GetTextExtentPointW
+    GetTextMetricsW
+    TextOutW
+    ; nt-mac 独自
+    ntmac_GetBrushColor

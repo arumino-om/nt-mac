@@ -1,56 +1,119 @@
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
+#include "host/loader/exceptions/load_error.h"
 #include "host/runtime/host_entry.h"
 #include "host/runtime/thunks.h"
-#include "host/loader/exceptions/load_error.h"
 #include "purefuncs.h"
 
 namespace ntmac::runtime {
 
 namespace {
 
-// movabs rax, <impl>
-// jmp    qword ptr [rip + 0]
-// .quad  <ntmac_host_trampoline>
-constexpr size_t kStubSize = 32;
+/**
+ * 実行時に生成するコードの置き場．
+ *
+ * 同じ物理ページを「書き込み用 (RW)」と「実行用 (RX)」の2つのアドレスに割り当てる．
+ * 実行可能なページを書き換えずに済むので，他のスレッドが既存のコードを実行中でも安全に追記できる．
+ * 一度書いたコードは書き換えない (Rosetta の翻訳済みのコードと食い違わないようにするため)．
+ */
+class CodeArena {
+public:
+    uint8_t* write(const uint8_t* code, size_t size) {
+        std::lock_guard lock(mutex_);
+        size_t slot = align_up(size, 16);
+        if (used_ + slot > kChunkSize || !exec_) new_chunk();
+        std::memcpy(write_ + used_, code, size);
+        uint8_t* p = exec_ + used_;
+        used_ += slot;
+        return p;
+    }
 
-void write_stub(uint8_t* p, void* impl) {
-    auto trampoline = reinterpret_cast<uint64_t>(&ntmac_host_trampoline);
-    auto target = reinterpret_cast<uint64_t>(impl);
+private:
+    static constexpr size_t kChunkSize = 64 * 1024;
 
-    std::memset(p, 0xCC, kStubSize); // int3
-    p[0] = 0x48; p[1] = 0xB8;
-    std::memcpy(p + 2, &target, sizeof(target));
-    p[10] = 0xFF; p[11] = 0x25;
-    std::memset(p + 12, 0, 4);
-    std::memcpy(p + 16, &trampoline, sizeof(trampoline));
+    void new_chunk() {
+        mach_vm_address_t rw = 0;
+        if (mach_vm_allocate(mach_task_self(), &rw, kChunkSize, VM_FLAGS_ANYWHERE) != KERN_SUCCESS) {
+            throw loader::LoadError("コード生成用のメモリを確保できませんでした");
+        }
+        std::memset(reinterpret_cast<void*>(rw), 0xCC, kChunkSize); // int3
+
+        mach_vm_address_t rx = 0;
+        vm_prot_t cur = 0, max = 0;
+        if (mach_vm_remap(mach_task_self(), &rx, kChunkSize, 0, VM_FLAGS_ANYWHERE, mach_task_self(), rw, FALSE,
+                          &cur, &max, VM_INHERIT_NONE) != KERN_SUCCESS ||
+            mprotect(reinterpret_cast<void*>(rx), kChunkSize, PROT_READ | PROT_EXEC) != 0) {
+            throw loader::LoadError("コード生成用のメモリを実行可能にできませんでした");
+        }
+
+        write_ = reinterpret_cast<uint8_t*>(rw);
+        exec_ = reinterpret_cast<uint8_t*>(rx);
+        used_ = 0;
+    }
+
+    std::mutex mutex_;
+    uint8_t* write_ = nullptr;
+    uint8_t* exec_ = nullptr;
+    size_t used_ = 0;
+};
+
+CodeArena& arena() {
+    static CodeArena a;
+    return a;
 }
 
+/** x86-64 の機械語を組み立てる */
+class Code {
+public:
+    Code& bytes(std::initializer_list<uint8_t> b) {
+        for (auto x : b) buf_[len_++] = x;
+        return *this;
+    }
+    Code& imm64(uint64_t v) {
+        std::memcpy(buf_ + len_, &v, sizeof(v));
+        len_ += sizeof(v);
+        return *this;
+    }
+    Code& imm64(const void* p) { return imm64(reinterpret_cast<uint64_t>(p)); }
+
+    Code& movabs_rax(const void* p) { return bytes({0x48, 0xB8}).imm64(p); }
+    Code& movabs_rcx(const void* p) { return bytes({0x48, 0xB9}).imm64(p); }
+    Code& mov_rdx_from_rsp() { return bytes({0x48, 0x8B, 0x14, 0x24}); }            // mov rdx, [rsp]
+    Code& jmp_abs(const void* p) { return bytes({0xFF, 0x25, 0, 0, 0, 0}).imm64(p); } // jmp [rip+0]
+
+    void* emit() { return arena().write(buf_, len_); }
+
+private:
+    uint8_t buf_[64];
+    size_t len_ = 0;
+};
+
+const void* trampoline() {
+    return reinterpret_cast<const void*>(&ntmac_host_trampoline);
+}
+
+}
+
+void* make_host_entry(void* impl) {
+    return Code().movabs_rax(impl).jmp_abs(trampoline()).emit();
 }
 
 std::vector<void*> make_host_entries(std::span<void* const> impls) {
     std::vector<void*> entries;
-    if (impls.empty()) return entries;
-
-    // 全スタブを1つの領域にまとめて書き込み，以後は実行専用にする
-    size_t size = align_up(impls.size() * kStubSize, getpagesize());
-    void* mem = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (mem == MAP_FAILED) {
-        throw loader::LoadError("ホスト関数の入口スタブ用のメモリを確保できませんでした");
-    }
-
-    auto base = static_cast<uint8_t*>(mem);
-    for (size_t i = 0; i < impls.size(); i++) {
-        write_stub(base + i * kStubSize, impls[i]);
-        entries.push_back(base + i * kStubSize);
-    }
-
-    if (mprotect(mem, size, PROT_READ | PROT_EXEC) != 0) {
-        throw loader::LoadError("ホスト関数の入口スタブを実行可能にできませんでした");
-    }
+    for (auto impl : impls) entries.push_back(make_host_entry(impl));
     return entries;
+}
+
+void* make_bound_host_entry(void* impl, const void* ctx) {
+    return Code().movabs_rcx(ctx).mov_rdx_from_rsp().movabs_rax(impl).jmp_abs(trampoline()).emit();
+}
+
+void* make_jump_entry(const void* target, const void* ctx) {
+    return Code().movabs_rax(ctx).jmp_abs(target).emit();
 }
 
 }

@@ -25,8 +25,16 @@ std::optional<int> fd_from_handle(uint64_t handle) {
     if (handle == 0 || handle % 4 != 0) return std::nullopt;
     size_t index = handle / 4 - 1;
     auto& table = handle_table();
-    if (index >= table.size()) return std::nullopt;
+    if (index >= table.size() || table[index] < 0) return std::nullopt;
     return table[index];
+}
+
+bool close_handle_entry(uint64_t handle) {
+    auto fd = fd_from_handle(handle);
+    if (!fd) return false;
+    handle_table()[handle / 4 - 1] = -1;
+    if (*fd > STDERR_FILENO) close(*fd);
+    return true;
 }
 
 }

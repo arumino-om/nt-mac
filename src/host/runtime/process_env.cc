@@ -2,18 +2,22 @@
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <unistd.h>
+#include <crt_externs.h>
 #include <array>
 #include <atomic>
 #include <cstring>
 #include "host/ntmachost/handles.h"
 #include "host/runtime/process_env.h"
 #include "host/runtime/thunks.h"
+#include "host/runtime/unicode.h"
 #include "host/loader/exceptions/load_error.h"
 #include "purefuncs.h"
 
 namespace ntmac::runtime {
 
 namespace {
+
+char** const& environ = *_NSGetEnviron();
 
 thread_local ntmac_teb* tls_current_teb = nullptr;
 
@@ -55,45 +59,41 @@ void register_teb(const void* teb) {
     throw loader::LoadError("TEB の登録数が上限を超えました");
 }
 
+uint16_t* copy_to_pe_memory(const std::u16string& s) {
+    auto buf = static_cast<uint16_t*>(alloc_zeroed(s.size() * sizeof(char16_t)));
+    std::memcpy(buf, s.data(), s.size() * sizeof(char16_t));
+    return buf;
+}
+
 /**
- * UTF-8 を UTF-16 に変換し，終端付きで確保した UNICODE_STRING にします．
+ * 文字列を，終端付きで確保した UNICODE_STRING にします．
  */
-ntmac_unicode_string make_unicode_string(const std::string& s) {
-    std::vector<uint16_t> out;
-    for (size_t i = 0; i < s.size();) {
-        auto c = static_cast<unsigned char>(s[i]);
-        uint32_t cp;
-        size_t n;
-        if (c < 0x80)              { cp = c;        n = 1; }
-        else if ((c >> 5) == 0x6)  { cp = c & 0x1F; n = 2; }
-        else if ((c >> 4) == 0xE)  { cp = c & 0x0F; n = 3; }
-        else if ((c >> 3) == 0x1E) { cp = c & 0x07; n = 4; }
-        else                       { cp = 0xFFFD;   n = 1; }
-        if (i + n > s.size()) { cp = 0xFFFD; n = s.size() - i; }
-        for (size_t k = 1; k < n; k++) cp = (cp << 6) | (static_cast<unsigned char>(s[i + k]) & 0x3F);
-        i += n;
-
-        if (cp >= 0x10000) {
-            cp -= 0x10000;
-            out.push_back(static_cast<uint16_t>(0xD800 | (cp >> 10)));
-            out.push_back(static_cast<uint16_t>(0xDC00 | (cp & 0x3FF)));
-        } else {
-            out.push_back(static_cast<uint16_t>(cp));
-        }
-    }
-
-    size_t bytes = out.size() * sizeof(uint16_t);
-    if (bytes + sizeof(uint16_t) > UINT16_MAX) {
+ntmac_unicode_string make_unicode_string(const std::u16string& s) {
+    std::u16string utf16 = s;
+    size_t bytes = utf16.size() * sizeof(char16_t);
+    if (bytes + sizeof(char16_t) > UINT16_MAX) {
         throw loader::LoadError("文字列が長すぎます");
     }
-    auto buf = static_cast<uint16_t*>(alloc_zeroed(bytes + sizeof(uint16_t)));
-    std::memcpy(buf, out.data(), bytes);
+    utf16.push_back(0);
 
     ntmac_unicode_string us{};
     us.Length = static_cast<uint16_t>(bytes);
     us.MaximumLength = static_cast<uint16_t>(bytes + sizeof(uint16_t));
-    us.Buffer = buf;
+    us.Buffer = copy_to_pe_memory(utf16);
     return us;
+}
+
+/**
+ * ホストの環境変数から，Windows の環境ブロック ("NAME=VALUE\0" の並びと終端の "\0") を作ります．
+ */
+uint16_t* make_environment_block() {
+    std::u16string block;
+    for (char** env = environ; *env; env++) {
+        block += utf8_to_utf16(*env);
+        block.push_back(0);
+    }
+    block.push_back(0);
+    return copy_to_pe_memory(block);
 }
 
 /**
@@ -165,8 +165,9 @@ ntmac_peb* create_peb(const PebParams& params) {
     pp->StandardInput = reinterpret_cast<void*>(ntmachost::std_handle(STDIN_FILENO));
     pp->StandardOutput = reinterpret_cast<void*>(ntmachost::std_handle(STDOUT_FILENO));
     pp->StandardError = reinterpret_cast<void*>(ntmachost::std_handle(STDERR_FILENO));
-    pp->ImagePathName = make_unicode_string(params.image_path);
-    pp->CommandLine = make_unicode_string(build_command_line(params.args));
+    pp->ImagePathName = make_unicode_string(to_windows_path(params.image_path));
+    pp->CommandLine = make_unicode_string(utf8_to_utf16(build_command_line(params.args)));
+    pp->Environment = make_environment_block();
 
     peb->ImageBaseAddress = params.image_base;
     peb->ProcessParameters = pp;

@@ -1,7 +1,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <algorithm>
-#include <iostream>
 #include <vector>
 #include "host/loader/mapped_image.h"
 #include "purefuncs.h"
@@ -13,11 +12,8 @@ MappedImage::MappedImage(const PeImage& pe)
       opt_(pe.optional_header()),
       import_dir_(pe.data_directory(formats::kDirImport)),
       export_dir_(pe.data_directory(formats::kDirExport)),
+      tls_dir_(pe.data_directory(formats::kDirTls)),
       sections_(pe.sections().begin(), pe.sections().end()) {
-    if (pe.data_directory(formats::kDirTls).Size != 0) {
-        std::cerr << "warning: TLSディレクトリは未対応のため無視します\n";
-    }
-
     reserve(pe);
     try {
         copy_sections(pe);
@@ -236,6 +232,22 @@ std::optional<ExportTarget> MappedImage::find_export(const ImportSymbol& sym) co
         target.address = checked(rva, 1);
     }
     return target;
+}
+
+std::optional<formats::TlsDirectory64> MappedImage::tls_directory() const {
+    if (tls_dir_.Size == 0) return std::nullopt;
+    return read<formats::TlsDirectory64>(tls_dir_.VirtualAddress);
+}
+
+bool MappedImage::is_code(const void* p) const {
+    if (!contains(p)) return false;
+    uint64_t rva = static_cast<const uint8_t*>(p) - base_;
+    for (const auto& sec : sections_) {
+        if (rva >= sec.VirtualAddress && rva - sec.VirtualAddress < formats::virtual_size(sec)) {
+            return sec.Characteristics & formats::kScnMemExecute;
+        }
+    }
+    return false;
 }
 
 }

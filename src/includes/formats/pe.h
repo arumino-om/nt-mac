@@ -15,6 +15,7 @@ constexpr uint16_t kFileRelocsStripped = 0x0001;
 constexpr uint16_t kFileDll            = 0x2000;
 
 // DllMain の reason
+constexpr uint32_t kDllProcessDetach = 0;
 constexpr uint32_t kDllProcessAttach = 1;
 
 // DataDirectoryのインデックス
@@ -136,6 +137,16 @@ struct ExportDirectory {
     uint32_t AddressOfNameOrdinals; // uint16_t[NumberOfNames] (Baseを引いた値)
 };
 
+// アドレスはすべて (再配置済みの) 仮想アドレス
+struct TlsDirectory64 {
+    uint64_t StartAddressOfRawData;   // TLS の初期値の先頭
+    uint64_t EndAddressOfRawData;
+    uint64_t AddressOfIndex;          // TLS インデックスを書き込む先 (_tls_index)
+    uint64_t AddressOfCallBacks;      // NULL 終端のコールバック配列
+    uint32_t SizeOfZeroFill;          // 初期値の後ろにゼロで埋める大きさ
+    uint32_t Characteristics;
+};
+
 struct BaseRelocationBlock {
     uint32_t VirtualAddress;
     uint32_t SizeOfBlock;        // このヘッダを含むブロック全体のサイズ
@@ -153,6 +164,7 @@ static_assert(offsetof(OptionalHeader64, DataDirectory) == 112);
 
 static_assert(sizeof(ImportDescriptor) == 20);
 static_assert(sizeof(ExportDirectory) == 40);
+static_assert(sizeof(TlsDirectory64) == 40);
 static_assert(sizeof(BaseRelocationBlock) == 8);
 
 static_assert(sizeof(SectionHeader) == 40);

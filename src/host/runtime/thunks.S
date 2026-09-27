@@ -115,6 +115,75 @@ _ntmac_host_trampoline:
     ret
 
 /*
+ * PE→PE の呼び出しを記録するリレー (NTMAC_TRACE=relay)．PE モードで動く．
+ *
+ * make_jump_entry() が生成する入口から rax = relay_info* で jmp してくる．
+ * relay_info は { const char* name; void* target; }．
+ * 引数を保存して ntmac_relay_enter(info, 引数の配列) を，本来の関数 target を呼んだ後に
+ * ntmac_relay_leave(info, 戻り値) を呼ぶ (どちらも ms_abi のホスト関数で，gs の切り替えは trampoline が行う)．
+ */
+#define RELAY_XMM_SAVE (32 + 8 * HOST_STACK_ARGS)   /* xmm0-3 の退避場所 (64バイト) */
+#define RELAY_FRAME    (RELAY_XMM_SAVE + 64)
+
+    .globl _ntmac_relay_thunk
+    .p2align 4
+_ntmac_relay_thunk:
+    push    %rbp
+    mov     %rsp, %rbp
+    push    %rbx
+    push    %r12
+    sub     $RELAY_FRAME, %rsp
+    mov     %rax, %rbx                  /* rbx = relay_info */
+
+    /* レジスタ引数は呼び出し元が用意したシャドウ領域に置く．[rbp+16] から引数が順に並ぶ */
+    mov     %rcx, 16(%rbp)
+    mov     %rdx, 24(%rbp)
+    mov     %r8, 32(%rbp)
+    mov     %r9, 40(%rbp)
+    movdqu  %xmm0, (RELAY_XMM_SAVE + 0)(%rsp)
+    movdqu  %xmm1, (RELAY_XMM_SAVE + 16)(%rsp)
+    movdqu  %xmm2, (RELAY_XMM_SAVE + 32)(%rsp)
+    movdqu  %xmm3, (RELAY_XMM_SAVE + 48)(%rsp)
+
+    mov     %rbx, %rcx
+    lea     16(%rbp), %rdx
+    lea     _ntmac_relay_enter(%rip), %rax
+    call    _ntmac_host_trampoline
+
+    /* スタック引数 (第5引数以降) を積み直す */
+    xor     %ecx, %ecx
+1:  mov     48(%rbp, %rcx, 8), %rax
+    mov     %rax, 32(%rsp, %rcx, 8)
+    inc     %ecx
+    cmp     $HOST_STACK_ARGS, %ecx
+    jne     1b
+
+    mov     16(%rbp), %rcx
+    mov     24(%rbp), %rdx
+    mov     32(%rbp), %r8
+    mov     40(%rbp), %r9
+    movdqu  (RELAY_XMM_SAVE + 0)(%rsp), %xmm0
+    movdqu  (RELAY_XMM_SAVE + 16)(%rsp), %xmm1
+    movdqu  (RELAY_XMM_SAVE + 32)(%rsp), %xmm2
+    movdqu  (RELAY_XMM_SAVE + 48)(%rsp), %xmm3
+    call    *8(%rbx)
+
+    mov     %rax, %r12
+    movdqu  %xmm0, (RELAY_XMM_SAVE + 0)(%rsp)
+    mov     %rbx, %rcx
+    mov     %rax, %rdx
+    lea     _ntmac_relay_leave(%rip), %rax
+    call    _ntmac_host_trampoline
+    movdqu  (RELAY_XMM_SAVE + 0)(%rsp), %xmm0
+    mov     %r12, %rax
+
+    lea     -16(%rbp), %rsp
+    pop     %r12
+    pop     %rbx
+    pop     %rbp
+    ret
+
+/*
  * void* ntmac_read_gs_self(void)
  *
  * gs:[0x30] を返す．gs が TEB を指していれば TEB 自身のアドレス．

@@ -11,4 +11,9 @@ namespace ntmac::ntmachost {
 uint64_t std_handle(int fd);
 std::optional<int> fd_from_handle(uint64_t handle);
 
+/**
+ * ハンドルを表から取り除きます．標準入出力以外のファイルディスクリプタは閉じます．
+ */
+bool close_handle_entry(uint64_t handle);
+
 }

@@ -21,6 +21,11 @@ void ntmac_host_trampoline();
  */
 void* ntmac_read_gs_self();
 
+/**
+ * PE→PE の呼び出しを記録するリレー．make_jump_entry() の target に使います．
+ */
+void ntmac_relay_thunk();
+
 void ntmac_set_gs_base(void* base);
 
 }
